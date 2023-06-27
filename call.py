@@ -33,7 +33,6 @@ def auth(api_key=None, key_path=None):
         os.environ["OPENAI_API_KEY"] = api_key
         openai.api_key = api_key
         return
-
     if key_path is None:
         key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api_keys.json')
 
@@ -64,7 +63,7 @@ def call(prompt, system_message, model="gpt-3.5-turbo-0613", as_str=False):
         Returns:
             Chat object or string message based on the `as_str` parameter.
         """
-    messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt + "\n" + text}]
+    messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}]
     chat = openai.ChatCompletion.create(model=model, messages=messages)
     return chat if not as_str else chat.choices[0]['message']['content']
 
@@ -249,58 +248,59 @@ class File:
             self.load()
         return self.values[index] if self.values else None
 
-auth()
-# f = chat('a','a','test')
-# Example usage
-prompts = ["""You are taking part in a study, where you've been asked to solve the following puzzle:
-
-Peter is looking at Linda
-Linda is looking at Henry
-Peter is married
-Henry is not married
-Is someone who is married looking at someone who is not married?
-You have answered: We can't tell
-Your explanation: Based on the given information, we know that Peter is married and Henry is not married. However, we do not have any information about Linda's marital status. 
-
-A Message to you:
-
-Hi,
-Thank you for your well-thought-out response. I appreciate the clarity and critical thinking you’ve brought to the discussion. However, there seems to be a small misunderstanding which I'd like to address.
-
-Let’s reexamine the question: “Is someone who is married looking at someone who is not married?” The question does not require that it be the same married person in every scenario; rather, it asks if, in the given situation, there exists at least one instance of a married person looking at an unmarried person.
-
-Now let's revisit the scenarios I presented:
-
-1. If Linda is married, then she is looking at Henry, who is not married. In this scenario, Linda (married) is looking at Henry (not married), fulfilling the condition.
-   
-2. If Linda is not married, then we have Peter (who is married) looking at Linda (not married). In this scenario, Peter (married) is looking at Linda (not married), again fulfilling the condition.
-
-Note that the question doesn't ask if the same married person is looking at an unmarried person in all cases. It asks whether, in the information provided, there is at least one instance of this happening. Since we have established that in either scenario, regardless of Linda’s marital status, there is at least one instance of a married person looking at an unmarried person, the answer must be “yes”.
-
-Your concern seems to stem from the idea that the “someone who is married” must remain constant across both scenarios. However, this is not a requirement of the question. It merely asks if such a situation exists within the information provided, not whether it’s consistently the same individual who is married.
-
-I hope this clears up the confusion and helps in understanding why the answer is indeed "yes".
-
-Best regards,
-
-"""]
-system_messages = ["You are a participant in a psychology study, your behaviour has been encoded in function inputs"]
-
-
-def revise_your_answer(thought: str, new_answer: str, new_explanation: str):
-    """Decide to revise your answer based on the message response.
-
-    Parameters:
-        thought (string): The internal thought process behind the decision.
-        new_answer (string): The revised answer.
-        new_explanation (string): The explanation for the revised answer.
-    """
-    pass
+if __name__ == "__main__":
+    auth()
+    # f = chat('a','a','test')
+    # Example usage
+    prompts = ["""You are taking part in a study, where you've been asked to solve the following puzzle:
+    
+    Peter is looking at Linda
+    Linda is looking at Henry
+    Peter is married
+    Henry is not married
+    Is someone who is married looking at someone who is not married?
+    You have answered: We can't tell
+    Your explanation: Based on the given information, we know that Peter is married and Henry is not married. However, we do not have any information about Linda's marital status. 
+    
+    A Message to you:
+    
+    Hi,
+    Thank you for your well-thought-out response. I appreciate the clarity and critical thinking you’ve brought to the discussion. However, there seems to be a small misunderstanding which I'd like to address.
+    
+    Let’s reexamine the question: “Is someone who is married looking at someone who is not married?” The question does not require that it be the same married person in every scenario; rather, it asks if, in the given situation, there exists at least one instance of a married person looking at an unmarried person.
+    
+    Now let's revisit the scenarios I presented:
+    
+    1. If Linda is married, then she is looking at Henry, who is not married. In this scenario, Linda (married) is looking at Henry (not married), fulfilling the condition.
+       
+    2. If Linda is not married, then we have Peter (who is married) looking at Linda (not married). In this scenario, Peter (married) is looking at Linda (not married), again fulfilling the condition.
+    
+    Note that the question doesn't ask if the same married person is looking at an unmarried person in all cases. It asks whether, in the information provided, there is at least one instance of this happening. Since we have established that in either scenario, regardless of Linda’s marital status, there is at least one instance of a married person looking at an unmarried person, the answer must be “yes”.
+    
+    Your concern seems to stem from the idea that the “someone who is married” must remain constant across both scenarios. However, this is not a requirement of the question. It merely asks if such a situation exists within the information provided, not whether it’s consistently the same individual who is married.
+    
+    I hope this clears up the confusion and helps in understanding why the answer is indeed "yes".
+    
+    Best regards,
+    
+    """]
+    system_messages = ["You are a participant in a psychology study, your behaviour has been encoded in function inputs"]
 
 
+    def revise_your_answer(thought: str, new_answer: str, new_explanation: str):
+        """Decide to revise your answer based on the message response.
 
-json_schema = generate_schema_from_function(function)
+        Parameters:
+            thought (string): The internal thought process behind the decision.
+            new_answer (string): The revised answer.
+            new_explanation (string): The explanation for the revised answer.
+        """
+        pass
 
-function_call = "auto"
 
-file = chat(prompts, system_messages, "test_agent", functions=[json_schema], function_call=function_call)
+
+    json_schema = generate_schema_from_function(function)
+
+    function_call = "auto"
+
+    file = chat(prompts, system_messages, "test_agent", functions=[json_schema], function_call=function_call)
