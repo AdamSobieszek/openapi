@@ -156,7 +156,7 @@ def chat(prompts, system_messages, save_filepath, model="gpt-3.5-turbo-0613", ap
     except:
         asyncio.run(job)
 
-    time.sleep(1)
+    await time.sleep(1)
 
     return File(save_filepath)
 
