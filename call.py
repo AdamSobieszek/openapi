@@ -150,13 +150,12 @@ def chat(prompts, system_messages, save_filepath, model="gpt-3.5-turbo-0613", ap
         if loop.is_running():
             # In a running event loop (Jupyter Notebooks, IPython), use create_task
             task = asyncio.create_task(job)
+            task = asyncio.create_task(asyncio.sleep(1))
         else:
             # Outside notebooks, use run_until_complete
             loop.run_until_complete(job)
     except:
         asyncio.run(job)
-
-    await time.sleep(1)
 
     return File(save_filepath)
 
