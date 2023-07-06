@@ -2,6 +2,7 @@ import asyncio
 import json
 from typing import List
 import logging
+import os
 
 try:
     # Try a relative import (when run as part of a package)
@@ -31,31 +32,36 @@ async def execute_api_requests_in_parallel(
     # create list of request JSON objects
     requests = [json.loads(request_string) for request_string in request_strings]
 
+    # create temp file
+    abs_filepath = os.path.abspath(save_filepath)  # Convert to absolute path
+    dir_path = os.path.dirname(abs_filepath)  # Extract directory name
+    base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
+
+    # Prepare the file path with the required name ending
+    file_path = os.path.join(dir_path, base_filename + "_log.txt")
+
+    # Ensure that the directory exists
+    os.makedirs(dir_path, exist_ok=True)
+    with open(file_path, "w") as f:
+        for job in requests:
+            json_string = json.dumps(job)
+            f.write(json_string + "\n")
+
     # infer API endpoint and construct request header
     api_endpoint = api_endpoint_from_url(request_url)
     request_header = {"Authorization": f"Bearer {api_key}"}
 
-    # initialize asyncio event loop
-    loop = asyncio.get_event_loop()
-
-    # create tasks for each request
-    tasks = [
-        loop.create_task(
-            APIRequest(
-                task_id=task_id,
-                request_json=request,
-                token_consumption=num_tokens_consumed_from_request(request, api_endpoint, token_encoding_name),
-                attempts_left=max_attempts,
-            ).call_api(
-                request_url=request_url,
-                request_header=request_header,
-                retry_queue=asyncio.Queue(),
-                save_filepath=save_filepath,
-                status_tracker=StatusTracker(),
-            )
-        )
-        for task_id, request in enumerate(requests, start=1)
-    ]
 
     # run tasks in parallel
-    await asyncio.gather(*tasks)
+
+    await process_api_requests_from_file(
+        requests_filepath=file_path,
+        save_filepath=save_filepath,
+        request_url=request_url,
+        api_key=api_key,
+        max_requests_per_minute=float(max_requests_per_minute),
+        max_tokens_per_minute=float(max_tokens_per_minute),
+        token_encoding_name=token_encoding_name,
+        max_attempts=int(max_attempts),
+        logging_level=int(logging_level),
+    )
