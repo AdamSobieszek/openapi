@@ -245,32 +245,31 @@ class File:
         self.values = None
 
     # @retry(tries=3, delay=1, backoff=2)
-    def load(self):
-        if self.values is None:
-            try:
-                with open(self.path, 'r') as file:
-                    self.values = [eval(line.replace(' null',' None')) for line in file.readlines()]
-                    try:
-                        abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
-                        dir_path = os.path.dirname(abs_filepath)  # Extract directory name
-                        base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
-                        file_path = os.path.join(dir_path, base_filename + "_log.txt")
+    def load(path):
+        try:
+            with open(path, 'r') as file:
+                values_unordered = [eval(line.replace(' null', ' None')) for line in file.readlines()]
+                values = []
+                try:
+                    abs_filepath = os.path.abspath(path)  # Convert to absolute path
+                    dir_path = os.path.dirname(abs_filepath)  # Extract directory name
+                    base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
+                    file_path = os.path.join(dir_path, base_filename + "_log.txt")
+                    order = open(file_path, 'r').readlines()
+                    for line in order:
+                        for v in values_unordered:
+                            if line.strip().replace('"', "'") in str(v):
+                                values.append(v)
+                except:
+                    print("Could not order")
 
-                        order = open(file_path, 'r').readlines()
-                        values, self.values = self.values, []
-                        for line in order:
-                            for v in values:
-                                if line.strip() in values:
-                                    self.values.append(v)
-                    except:
-                        print("Could not order")
-
-            except FileNotFoundError:
-                # print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
-                # raise Exception(f"Trying to restart or file not found: {self.path}"
-                print("Failed to load file, returning a File object with a .load() method")
-            except Exception as e:
-                print(f"Error loading file: {e}")
+        except FileNotFoundError:
+            # print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
+            # raise Exception(f"Trying to restart or file not found: {self.path}"
+            print("Failed to load file, returning a File object with a .load() method")
+        except Exception as e:
+            print(f"Error loading file: {e}")
+        return values
 
     @property
     def prompts(self):
