@@ -211,12 +211,7 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
     )
     try:
         loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # In a running event loop (Jupyter Notebooks, IPython), use create_task
-            task = asyncio.create_task(job)
-        else:
-            # Outside notebooks, use run_until_complete
-            loop.run_until_complete(job)
+        loop.run_until_complete(job)
     except:
         asyncio.run(job)
 
