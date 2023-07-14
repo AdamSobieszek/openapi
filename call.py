@@ -182,6 +182,7 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
     Returns:
         dict: The embeddings from the saved results file, loaded as a Python dictionary.
     """
+    if as_np: to_csv = False
     if api_key is None:
         api_key = os.environ["OPENAI_API_KEY"]
     if isinstance(texts, str) : texts = [texts]
@@ -229,10 +230,8 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
         result = File(save_filepath)[:]
         df = pd.DataFrame({"text": [m[0]["input"] for m in result], "embedding":[m[1]["data"][0]["embedding"] if isinstance(m[1]["data"][0]["embedding"], list) else eval(m[1]["data"][0]["embedding"]) for m in result]})
         df.to_csv(Path(save_filepath).with_suffix('.csv').as_posix().replace('.csv','_df.csv'))
-        if not as_np: return df
-        else:
-            import numpy as np
-            return np.array(df.embedding.to_list())
+        return df
+
 
 get_embedding = embed  ## Alternative function name
 
