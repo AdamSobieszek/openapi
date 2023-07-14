@@ -8,6 +8,7 @@ import logging
 import time
 from pathlib import Path
 import pandas as pd
+from retry import retry
 
 try:
     # Try a relative import (when run as part of a package)
@@ -173,21 +174,28 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
     Parameters:
         texts (List[str]): List of texts for which to get embeddings.
         save_filepath (str, optional): Path to save the results. Default is "embedding_temp.txt".
+        to_csv (bool, optional):
+        as_np (bool, optional):
         api_key (str, optional): API key for authentication. If None, uses environment variable.
         verbose (bool, optional): If True, enables detailed logging. Default is True.
 
     Returns:
         dict: The embeddings from the saved results file, loaded as a Python dictionary.
     """
+    if api_key is None:
+        api_key = os.environ["OPENAI_API_KEY"]
+    if isinstance(texts, str) : texts = [texts]
+    if len(texts) == 1:
+        output = openai.Embedding.create(input=texts, model="text-embedding-ada-002")['data'][0]['embedding']
+        return pd.DataFrame({'text':texts,'embedding':[output]}) if to_csv else output
     if save_filepath == 'embedding_temp.txt':
         with open(save_filepath,'w') as f:
             f = ''
 
+
     # Request strings for jobs (I assume you have a list of jobs you want to process)
     jobs = [{"model": "text-embedding-ada-002", "input": str(x) + "\n"} for x in texts]
     request_strings = [json.dumps(job, ensure_ascii=False) for job in jobs]
-    if api_key is None:
-        api_key = os.environ["OPENAI_API_KEY"]
 
     # Execute API requests in parallel and save results to a file
     job = execute_api_requests_in_parallel(
@@ -227,18 +235,35 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
             return np.array(df.embedding.to_list())
 
 get_embedding = embed  ## Alternative function name
+
 class File:
     def __init__(self, path):
         self.path = path
         self.values = None
 
+    @retry(tries=3, delay=1, backoff=2)
     def load(self):
         if self.values is None:
             try:
                 with open(self.path, 'r') as file:
                     self.values = [eval(line.replace(' null',' None')) for line in file.readlines()]
+                    try:
+                        abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
+                        dir_path = os.path.dirname(abs_filepath)  # Extract directory name
+                        base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
+                        file_path = os.path.join(dir_path, base_filename + "_log.txt")
+
+                        order = open(file_path, 'r').readlines()
+                        values, self.values = self.values, []
+                        for line in order:
+                            for v in values:
+                                if line.strip() in values:
+                                    self.values.append(v)
+                    except:
+                        print("Could not order")
+
             except FileNotFoundError:
-                print(f"File not found: {self.path}")
+                raise Exception(f"Trying to restart or file not found: {self.path}")
             except Exception as e:
                 print(f"Error loading file: {e}")
 
