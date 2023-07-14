@@ -1,2 +1,4 @@
 openai
 tiktoken
+retry
+nest_asyncio

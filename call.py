@@ -9,6 +9,10 @@ import time
 from pathlib import Path
 import pandas as pd
 from retry import retry
+import nest_asyncio
+
+nest_asyncio.apply()
+
 
 try:
     # Try a relative import (when run as part of a package)
@@ -155,12 +159,7 @@ def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3
 
     try:
         loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # In a running event loop (Jupyter Notebooks, IPython), use create_task
-            task = asyncio.create_task(job)
-        else:
-            # Outside notebooks, use run_until_complete
-            loop.run_until_complete(job)
+        loop.run_until_complete(job)
     except Exception as E:
         asyncio.run(job)
 
@@ -243,12 +242,14 @@ class File:
     def __init__(self, path):
         self.path = path
         self.values = None
+        self.type = None
 
     # @retry(tries=3, delay=1, backoff=2)
     def load(self):
         try:
             with open(self.path, 'r') as file:
                 values_unordered = [eval(line.replace(' null', ' None')) for line in file.readlines()]
+
                 self.values = []
                 try:
                     abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
