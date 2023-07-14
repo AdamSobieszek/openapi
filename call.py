@@ -239,12 +239,17 @@ class File:
         self.values = None
         self.type = None
 
+    def what_type(self, values):
+        try:
+            return "embedding" if "embedding" in values[0]["model"] else "chat"
+        except:
+            return
     # @retry(tries=3, delay=1, backoff=2)
     def load(self):
         try:
             with open(self.path, 'r') as file:
                 values_unordered = [eval(line.replace(' null', ' None')) for line in file.readlines()]
-
+                self.type = self.what_type(values_unordered)
                 self.values = []
                 try:
                     abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
@@ -268,28 +273,28 @@ class File:
         return self.values
 
     @property
-    def prompts(self):
+    def _prompts(self):
         if self.values is None:
             self.load()
         return [entry[0] for entry in self.values] if self.values else []
 
     @property
-    def completions(self):
+    def _completions(self):
         if self.values is None:
             self.load()
         return [entry[1] for entry in self.values] if self.values else []
 
     @property
-    def _prompts(self):
+    def prompts(self):
         if self.values is None:
             self.load()
-        return [entry["messages"][1]["content"] for entry in self.prompts] if self.prompts else []
+        return [(entry["input"] if self.type == "embedding" else entry["messages"][1]["content"]) for entry in self._prompts] if self._prompts else []
 
     @property
-    def _completions(self):
+    def completions(self):
         if self.values is None:
             self.load()
-        return [entry["choices"][0]["message"]["content"] for entry in self.completions] if self.completions else []
+        return [(entry["data"][0]["embedding"] if self.type == "embedding" else entry["choices"][0]["message"]["content"]) for entry in self._completions] if self._completions else []
 
     def __getitem__(self, index):
         if self.values is None:
