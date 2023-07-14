@@ -225,7 +225,7 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
         if not as_np: return File(save_filepath)[:]
         else:
             import numpy as np
-            return np.array([m[1]["data"][0]["embedding"] for m in File(save_filepath)])
+            return np.array([m[1]["data"][0]["embedding"] for m in File(save_filepath)[:]])
     else:
         result = File(save_filepath)[:]
         df = pd.DataFrame({"text": [m[0]["input"] for m in result], "embedding":[m[1]["data"][0]["embedding"] if isinstance(m[1]["data"][0]["embedding"], list) else eval(m[1]["data"][0]["embedding"]) for m in result]})
