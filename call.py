@@ -266,7 +266,7 @@ class File:
                         for v in values_unordered:
                             if line["input"] == v[0]["input"]:
                                 self.values.append(v)
-                                continue
+                                break
                 except:
                     print("Could not order")
 
