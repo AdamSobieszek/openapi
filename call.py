@@ -244,7 +244,7 @@ class File:
         self.path = path
         self.values = None
 
-    @retry(tries=3, delay=1, backoff=2)
+    # @retry(tries=3, delay=1, backoff=2)
     def load(self):
         if self.values is None:
             try:
@@ -267,7 +267,8 @@ class File:
 
             except FileNotFoundError:
                 # print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
-                raise Exception(f"Trying to restart or file not found: {self.path}")
+                # raise Exception(f"Trying to restart or file not found: {self.path}"
+                print("Failed to load file, returning a File object with a .load() method")
             except Exception as e:
                 print(f"Error loading file: {e}")
 
