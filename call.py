@@ -138,7 +138,9 @@ def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3
         Union[Coroutine, openai.ChatCompletion, str]: Coroutine object representing the asynchronous execution of the API requests if save_filepath is provided. Otherwise, returns the chat response object, or a string if as_str is True.
     """
     if save_filepath == "chat_temp.txt":
-        with open(save_filepath,'w') as f:
+        with open("chat_temp.txt",'w') as f:
+            f = ''
+        with open("chat_temp_log.txt",'w') as f:
             f = ''
     if not isinstance(system_messages, list): system_messages = [system_messages]
     if not isinstance(prompts, list): # If no save_filepath we assume we can skip saving
@@ -189,7 +191,9 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
         output = openai.Embedding.create(input=texts, model="text-embedding-ada-002")['data'][0]['embedding']
         return pd.DataFrame({'text':texts,'embedding':[output]}) if to_csv else output
     if save_filepath == 'embedding_temp.txt':
-        with open(save_filepath,'w') as f:
+        with open("embedding_temp.txt", 'w') as f:
+            f = ''
+        with open("embedding_temp_log.txt", 'w') as f:
             f = ''
 
 
@@ -258,8 +262,9 @@ class File:
                     file_path = os.path.join(dir_path, base_filename + "_log.txt")
                     order = open(file_path, 'r').readlines()
                     for line in order:
+                        line = eval(line.replace(' null', ' None'))
                         for v in values_unordered:
-                            if line.strip().replace('"', "'") in str(v):
+                            if line[0]["input"] == v[0]["input"]:
                                 self.values.append(v)
                 except:
                     print("Could not order")
