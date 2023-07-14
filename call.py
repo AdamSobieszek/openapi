@@ -245,13 +245,13 @@ class File:
         self.values = None
 
     # @retry(tries=3, delay=1, backoff=2)
-    def load(path):
+    def load(self):
         try:
-            with open(path, 'r') as file:
+            with open(self.path, 'r') as file:
                 values_unordered = [eval(line.replace(' null', ' None')) for line in file.readlines()]
-                values = []
+                self.values = []
                 try:
-                    abs_filepath = os.path.abspath(path)  # Convert to absolute path
+                    abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
                     dir_path = os.path.dirname(abs_filepath)  # Extract directory name
                     base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
                     file_path = os.path.join(dir_path, base_filename + "_log.txt")
@@ -259,7 +259,7 @@ class File:
                     for line in order:
                         for v in values_unordered:
                             if line.strip().replace('"', "'") in str(v):
-                                values.append(v)
+                                self.values.append(v)
                 except:
                     print("Could not order")
 
@@ -269,7 +269,7 @@ class File:
             print("Failed to load file, returning a File object with a .load() method")
         except Exception as e:
             print(f"Error loading file: {e}")
-        return values
+        return self.values
 
     @property
     def prompts(self):
