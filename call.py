@@ -167,7 +167,7 @@ def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3
     return File(save_filepath)[:]
 
 
-def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = False, api_key=None, verbose = True):
+def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = False, as_file = False, api_key=None, verbose = True):
     """
     Retrieves embeddings for the given texts from the OpenAI API and saves the results in a file.
 
@@ -221,13 +221,17 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
     except:
         asyncio.run(job)
 
+    if as_file: return File(save_filepath)
     if not to_csv:
         if not as_np: return File(save_filepath)[:]
         else:
             import numpy as np
-            return np.array([m[1]["data"][0]["embedding"] for m in File(save_filepath)[:]])
+            result = File(save_filepath)[:]
+            if result is None: return File(save_filepath)
+            return np.array([m[1]["data"][0]["embedding"] for m in result])
     else:
         result = File(save_filepath)[:]
+        if result is None: return File(save_filepath)
         df = pd.DataFrame({"text": [m[0]["input"] for m in result], "embedding":[m[1]["data"][0]["embedding"] if isinstance(m[1]["data"][0]["embedding"], list) else eval(m[1]["data"][0]["embedding"]) for m in result]})
         df.to_csv(Path(save_filepath).with_suffix('.csv').as_posix().replace('.csv','_df.csv'))
         return df
@@ -240,7 +244,7 @@ class File:
         self.path = path
         self.values = None
 
-    @retry(tries=6, delay=1, backoff=2)
+    @retry(tries=3, delay=1, backoff=2)
     def load(self):
         if self.values is None:
             try:
@@ -262,7 +266,7 @@ class File:
                         print("Could not order")
 
             except FileNotFoundError:
-                print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
+                # print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
                 raise Exception(f"Trying to restart or file not found: {self.path}")
             except Exception as e:
                 print(f"Error loading file: {e}")
