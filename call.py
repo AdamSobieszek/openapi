@@ -241,7 +241,7 @@ class File:
 
     def what_type(self, values):
         try:
-            return "embedding" if "embedding" in values[0]["model"] else "chat"
+            return "embedding" if "embedding" in values[0][0]["model"] else "chat"
         except:
             return
     # @retry(tries=3, delay=1, backoff=2)
@@ -296,6 +296,8 @@ class File:
             self.load()
         return [(entry["data"][0]["embedding"] if self.type == "embedding" else entry["choices"][0]["message"]["content"]) for entry in self._completions] if self._completions else []
 
+    embeddings = completions
+    input = prompts
     def __getitem__(self, index):
         if self.values is None:
             self.load()
