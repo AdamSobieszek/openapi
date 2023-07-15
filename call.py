@@ -328,7 +328,7 @@ class File:
         base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
         file_path = os.path.join(dir_path, base_filename + suffix)
         with open(file_path, 'w') as file:
-            file = "\n".join([eval(line.replace(' null', ' None')) for line in self.values])
+            file = "\n".join([str(line).replace(' None', ' null') for line in self.values])
 
 
 
