@@ -220,16 +220,19 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
         asyncio.run(job)
 
     if as_file: return File(save_filepath)
+
+    file = File(save_filepath)
+    result = File(save_filepath).load()
+    if result is None: return File(save_filepath)
+    if file.status == "loaded,ordered":  # Save ordered
+        file.save_ordered(save_filepath)
+
     if not to_csv:
-        if not as_np: return File(save_filepath)[:]
+        if not as_np: return result
         else:
             import numpy as np
-            result = File(save_filepath)[:]
-            if result is None: return File(save_filepath)
             return np.array([m[1]["data"][0]["embedding"] for m in result])
     else:
-        result = File(save_filepath)[:]
-        if result is None: return File(save_filepath)
         df = pd.DataFrame({"text": [m[0]["input"] for m in result], "embedding":[m[1]["data"][0]["embedding"] if isinstance(m[1]["data"][0]["embedding"], list) else eval(m[1]["data"][0]["embedding"]) for m in result]})
         df.to_csv(Path(save_filepath).with_suffix('.csv').as_posix().replace('.csv','_df.csv'))
         return df
@@ -242,6 +245,7 @@ class File:
         self.path = path
         self.values = None
         self.type = None
+        self.status = "unloaded,unordered"
 
     def what_type(self, values):
         try:
@@ -267,16 +271,24 @@ class File:
                             if line["input"] == v[0]["input"]:
                                 self.values.append(v)
                                 break
+                    assert len(self.values) <= len(values_unordered)
+                    self.status = "loaded,ordered" if len(self.values) <= len(values_unordered) else "partially_loaded,ordered"
                 except:
-                    print("Could not order")
+                    self.values = values_unordered
+                    self.status = "loaded,unordered"
+                    raise Exception("Could not order")
 
         except FileNotFoundError:
-            # print(os.getcwd(), os.listdir(os.getcwd()), os.path.exists(self.path), os.path.exists(os.getcwd()+"/"+self.path))
             # raise Exception(f"Trying to restart or file not found: {self.path}"
             print("Failed to load file, returning a File object with a .load() method")
+            self.values  = None
         except Exception as e:
             print(f"Error loading file: {e}")
         return self.values
+
+    def _load(self):
+        self.load()
+        return self
 
     @property
     def _prompts(self):
@@ -308,6 +320,17 @@ class File:
         if self.values is None:
             self.load()
         return self.values[index] if self.values else None
+
+    def save_ordered(self, suffix = "_ordered.txt"):
+        assert self.status == "loaded,ordered"
+        abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
+        dir_path = os.path.dirname(abs_filepath)  # Extract directory name
+        base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
+        file_path = os.path.join(dir_path, base_filename + suffix)
+        with open(file_path, 'w') as file:
+            file = "\n".join([eval(line.replace(' null', ' None')) for line in self.values])
+
+
 
 if __name__ == "__main__":
     auth()
