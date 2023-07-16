@@ -226,8 +226,10 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
     file = File(save_filepath)
     result = File(save_filepath).load()
     if result is None: return File(save_filepath)
-    if file.status == "loaded,ordered":  # Save ordered
-        file.save_ordered(save_filepath)
+    if file.status == "loaded,ordered":  # Replace with ordered
+        file.save_ordered(save_filepath, "", False)
+
+    file.save_ordered(save_filepath)
 
     if not to_csv:
         if not as_np: return result
@@ -278,7 +280,7 @@ class File:
                 except:
                     self.values = values_unordered
                     self.status = "loaded,unordered"
-                    raise Exception("Could not order")
+                    raise Exception("No *_log file, returning with the save order")
 
         except FileNotFoundError:
             # raise Exception(f"Trying to restart or file not found: {self.path}"
@@ -332,14 +334,22 @@ class File:
             self.load()
         return self.values[index] if self.values else None
 
-    def save_ordered(self, suffix = "_ordered.txt", to_csv = True):
+    def save(self, path):
+        df = self.to_df()
+        df.to_csv(path)
+
+    def save_ordered(self, suffix = None, to_csv = True):
         assert self.status == "loaded,ordered"
+        if suffix is None: "_embeddings.csv" if self.status == "embeddings" else "_chat.csv"
         abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
         dir_path = os.path.dirname(abs_filepath)  # Extract directory name
         base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
         file_path = os.path.join(dir_path, base_filename + suffix)
-        with open(file_path, 'w') as file:
-            file = "\n".join([str(line).replace(' None', ' null') for line in self.values])
+        if to_csv:
+            self.save(file_path)
+        else:
+            with open(file_path, 'w') as file:
+                file = "\n".join([str(line).replace(' None', ' null') for line in self.values])
 
 
 
