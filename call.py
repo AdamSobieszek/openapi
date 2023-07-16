@@ -235,7 +235,7 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
             import numpy as np
             return np.array([m[1]["data"][0]["embedding"] for m in result])
     else:
-        df = pd.DataFrame({"text": [m[0]["input"] for m in result], "embedding":[m[1]["data"][0]["embedding"] if isinstance(m[1]["data"][0]["embedding"], list) else eval(m[1]["data"][0]["embedding"]) for m in result]})
+        df = file.to_df()
         df.to_csv(Path(save_filepath).with_suffix('.csv').as_posix().replace('.csv','_df.csv'))
         return df
 
@@ -292,6 +292,9 @@ class File:
         self.load()
         return self
 
+    def to_df(self):
+        return pd.DataFrame({"text" if self.type == "embedding" else "prompt": self.input, "embedding" if self.type == "embedding" else "completion": self.completion})
+
     @property
     def _prompts(self):
         if self.values is None:
@@ -316,14 +319,20 @@ class File:
             self.load()
         return [(entry["data"][0]["embedding"] if self.type == "embedding" else entry["choices"][0]["message"]["content"]) for entry in self._completions] if self._completions else []
 
-    embeddings = completions
+    embedding = completions
     input = prompts
+    embeddings = embedding
+    inputs = input
+    completion = completions
+    prompt = prompts
+    result = completions
+
     def __getitem__(self, index):
         if self.values is None:
             self.load()
         return self.values[index] if self.values else None
 
-    def save_ordered(self, suffix = "_ordered.txt"):
+    def save_ordered(self, suffix = "_ordered.txt", to_csv = True):
         assert self.status == "loaded,ordered"
         abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
         dir_path = os.path.dirname(abs_filepath)  # Extract directory name
