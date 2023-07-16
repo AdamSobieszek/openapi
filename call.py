@@ -339,8 +339,9 @@ class File:
         df.to_csv(path)
 
     def save_ordered(self, suffix = None, to_csv = True):
-        if to_csv == False:
-            assert self.status == "loaded,ordered"
+        if to_csv == False and self.status == "partially_loaded,ordered":
+                print("The unordered file has more entries than our attempt at ordering")
+                return
         if suffix is None:
             "_embeddings.csv" if self.status == "embeddings" else "_chat.csv"
         abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
