@@ -339,8 +339,10 @@ class File:
         df.to_csv(path)
 
     def save_ordered(self, suffix = None, to_csv = True):
-        assert self.status == "loaded,ordered"
-        if suffix is None: "_embeddings.csv" if self.status == "embeddings" else "_chat.csv"
+        if to_csv == False:
+            assert self.status == "loaded,ordered"
+        if suffix is None:
+            "_embeddings.csv" if self.status == "embeddings" else "_chat.csv"
         abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
         dir_path = os.path.dirname(abs_filepath)  # Extract directory name
         base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
