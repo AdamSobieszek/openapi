@@ -1,4 +1,5 @@
 from functools import wraps
+import os
 def override(func):
     @wraps(func)
     def wrapper(*args, save_filepath=None, override=False, **kwargs):
@@ -20,5 +21,9 @@ def override(func):
                 with open(ordered_file_path, 'w'):
                     pass
 
-        return func(*args, save_filepath=save_filepath, **kwargs)
+        # Check if 'save_filepath' is in kwargs
+        if 'save_filepath' in kwargs:
+            kwargs['save_filepath'] = save_filepath
+
+        return func(*args, **kwargs)
     return wrapper
