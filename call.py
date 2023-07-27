@@ -257,30 +257,38 @@ class File:
         except:
             return
     # @retry(tries=3, delay=1, backoff=2)
-    def load(self):
+    def load(self, order = True):
         try:
             with open(self.path, 'r') as file:
-                values_unordered = [eval(line.replace(' null', ' None')) for line in file.readlines()]
+                values_unordered =[]
+                for line in file.readlines():
+                    values_unordered.append(eval(line.replace(' null', ' None')))
                 self.type = self.what_type(values_unordered)
                 self.values = []
-                try:
-                    abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
-                    dir_path = os.path.dirname(abs_filepath)  # Extract directory name
-                    base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
-                    file_path = os.path.join(dir_path, base_filename + "_log.txt")
-                    order = open(file_path, 'r').readlines()
-                    for line in order:
-                        line = eval(line.replace(' null', ' None'))
-                        for v in values_unordered:
-                            if line["input"] == v[0]["input"]:
-                                self.values.append(v)
-                                break
-                    assert len(self.values) <= len(values_unordered)
-                    self.status = "loaded,ordered" if len(self.values) <= len(values_unordered) else "partially_loaded,ordered"
-                except:
+                if order:
+                    try:
+                        abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
+                        dir_path = os.path.dirname(abs_filepath)  # Extract directory name
+                        base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
+                        file_path = os.path.join(dir_path, base_filename + "_log.txt")
+                        order = open(file_path, 'r').readlines()
+                        for line in order:
+                            line = eval(line.replace(' null', ' None'))
+                            for v in values_unordered:
+                                if line["input"] == v[0]["input"]:
+                                    self.values.append(v)
+                                    break
+                        assert len(self.values) <= len(values_unordered)
+                        self.status = "loaded,ordered" if len(self.values) <= len(values_unordered) else "partially_loaded,ordered"
+                    except:
+                        self.values = values_unordered
+                        self.status = "loaded,unordered"
+                        # raise Exception("No *_log file, returning with the save order")
+                else:
                     self.values = values_unordered
-                    self.status = "loaded,unordered"
-                    raise Exception("No *_log file, returning with the save order")
+                    self.status = "loaded,ordered"  # unordered but intentionally
+
+
 
         except FileNotFoundError:
             # raise Exception(f"Trying to restart or file not found: {self.path}"
@@ -319,7 +327,8 @@ class File:
     def completions(self):
         if self.values is None:
             self.load()
-        return [(entry["data"][0]["embedding"] if self.type == "embedding" else entry["choices"][0]["message"]["content"]) for entry in self._completions] if self._completions else []
+
+        return [(entry["data"][0]["embedding"] if self.type == "embedding" else (entry["choices"][0]["message"]["content"] if len(entry["choices"]) == 1 else [m["message"]["content"] for m in entry["choices"]])) for entry in self._completions] if self._completions else []
 
     embedding = completions
     input = prompts
