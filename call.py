@@ -245,11 +245,12 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
 get_embedding = embed  ## Alternative function name
 
 class File:
-    def __init__(self, path):
+    def __init__(self, path, garbage_collect = False):
         self.path = path
         self.values = None
         self.type = None
         self.status = "unloaded,unordered"
+        self.garbage_collect = garbage_collect
 
     def what_type(self, values):
         try:
@@ -270,8 +271,8 @@ class File:
                         abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
                         dir_path = os.path.dirname(abs_filepath)  # Extract directory name
                         base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
-                        file_path = os.path.join(dir_path, base_filename + "_log.txt")
-                        order = open(file_path, 'r').readlines()
+                        log_file_path = os.path.join(dir_path, base_filename + "_log.txt")
+                        order = open(log_file_path, 'r').readlines()
                         for line in order:
                             line = eval(line.replace(' null', ' None'))
                             for v in values_unordered:
@@ -288,14 +289,18 @@ class File:
                     self.values = values_unordered
                     self.status = "loaded,ordered"  # unordered but intentionally
 
-
-
         except FileNotFoundError:
             # raise Exception(f"Trying to restart or file not found: {self.path}"
             print("Failed to load file, returning a File object with a .load() method")
             self.values  = None
         except Exception as e:
             print(f"Error loading file: {e}")
+        if self.garbage_collect and not self.status == "partially_loaded,ordered" and self.values is not None:
+            try:
+                os.remove(self.path)
+                os.remove(log_file_path)
+            except:
+                pass
         return self.values
 
     def _load(self):
