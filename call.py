@@ -258,36 +258,50 @@ class File:
         except:
             return
     # @retry(tries=3, delay=1, backoff=2)
+
+    def extract_prompts(self, dict_list):
+        if dict_list is None: return None
+        if isinstance(dict_list[0], list):
+            dict_list = [m[0] for m in dict_list]
+        return [(entry["input"] if self.type == "embedding" else entry["messages"][1]["content"]) for entry in dict_list]
+
+    def eval_file(self, path):
+        with open(path, 'r', encoding="utf-8") as file:
+            dict_list =[]
+            for line in file.readlines():
+                dict_list.append(eval(line.replace(' null', ' None')))
+        return dict_list
+
+
     def load(self, order = True):
         try:
-            with open(self.path, 'r') as file:
-                values_unordered =[]
-                for line in file.readlines():
-                    values_unordered.append(eval(line.replace(' null', ' None')))
-                self.type = self.what_type(values_unordered)
-                self.values = []
-                if order:
-                    try:
-                        abs_filepath = os.path.abspath(self.path)  # Convert to absolute path
-                        dir_path = os.path.dirname(abs_filepath)  # Extract directory name
-                        base_filename = os.path.splitext(os.path.basename(abs_filepath))[0]
-                        log_file_path = os.path.join(dir_path, base_filename + "_log.txt")
-                        order = open(log_file_path, 'r').readlines()
-                        for line in order:
-                            line = eval(line.replace(' null', ' None'))
-                            for v in values_unordered:
-                                if line["input"] == v[0]["input"]:
-                                    self.values.append(v)
-                                    break
-                        assert len(self.values) <= len(values_unordered)
-                        self.status = "loaded,ordered" if len(self.values) <= len(values_unordered) else "partially_loaded,ordered"
-                    except:
-                        self.values = values_unordered
-                        self.status = "loaded,unordered"
-                        # raise Exception("No *_log file, returning with the save order")
-                else:
+            values_unordered = self.eval_file(self.path)
+            self.type = self.what_type(values_unordered)
+            prompts_unordered = self.extract_prompts(values_unordered)
+            self.values = []
+            if order:
+                try:
+                    log_file_path = os.path.abspath(self.path).replace('.txt', '_log.txt')
+                    order = self.eval_file(log_file_path)
+                    prompts_ordered = self.extract_prompts(order)
+                    for prompt_o in prompts_ordered:
+                        for prompt_uno, v in zip(prompts_unordered, values_unordered):
+                            if prompt_o == prompt_uno:
+                                self.values.append(v)
+                                break
+                    assert len(self.values) <= len(values_unordered)
+                    self.status = "loaded,ordered" if len(self.values) <= len(values_unordered) else "partially_loaded,ordered"
+                except:
+                    # If this occurs, there most likely is no *_log.txt file
                     self.values = values_unordered
-                    self.status = "loaded,ordered"  # unordered but intentionally
+                    if len(values_unordered)>1:
+                        self.status = "loaded,unordered"
+                    else:
+                        self.status = "loaded,ordered"
+
+            else:
+                self.values = values_unordered
+                self.status = "loaded,ordered"  # If this occurs it is unordered but intentionally
 
         except FileNotFoundError:
             # raise Exception(f"Trying to restart or file not found: {self.path}"
@@ -326,7 +340,7 @@ class File:
     def prompts(self):
         if self.values is None:
             self.load()
-        return [(entry["input"] if self.type == "embedding" else entry["messages"][1]["content"]) for entry in self._prompts] if self._prompts else []
+        return self.extract_prompts(self._prompts)
 
     @property
     def completions(self):
@@ -424,3 +438,5 @@ if __name__ == "__main__":
     json_schema = generate_schema_from_function(revise_your_answer)
 
     function_call = "auto"
+
+
