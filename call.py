@@ -13,19 +13,9 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-
-try:
-    # Try a relative import (when run as part of a package)
-    from .api_threading import execute_api_requests_in_parallel
-    from .functions import generate_schema_from_function
-    from .utils import override
-except ImportError:
-    # Fall back to an absolute import (when run as a standalone script)
-    from api_threading import execute_api_requests_in_parallel
-    from functions import generate_schema_from_function
-    from utils import override
-
-
+from .api_threading import execute_api_requests_in_parallel
+from .functions import generate_schema_from_function
+from .utils import override
 def auth(api_key=None, key_path=None):
     """
     Authenticates with the OpenAI API by setting the API key either directly or by reading from a file.
@@ -68,32 +58,32 @@ def call(prompt, system_message, model="gpt-3.5-turbo-0613", as_str=False):
     Returns:
         Union[openai.ChatCompletion, str]: The chat response object, or a string if as_str is True.
     """
-    messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}]
+    messages = [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}] if isinstance(prompt, str) else [{"role": "system", "content": system_message}]+[{"role": r, "content": c} for r,c in prompt]
     chat = openai.ChatCompletion.create(model=model, messages=messages)
     return chat if not as_str else chat.choices[0]['message']['content']
 
 
 
 def chat_strings(prompts, system_messages, model="gpt-3.5-turbo-0613", temperature=1, top_p=1, n=1,
-                 stream=False, stop=None, max_tokens=None, presence_penalty=0, frequency_penalty=0,
-                 functions=None, function_call="none"):
+                 stop=None, max_tokens=None, presence_penalty=0, frequency_penalty=0,
+                 functions=None, function_call="none", **kwargs):
     """
         Prepares a list of chat strings in JSON format for batch processing. Each string represents a separate chat prompt for the OpenAI API.
 
         Parameters:
-            prompts (List[str]): List of prompts.
+            prompts (List[str] or List[Tuple[str,str]]): List of prompts or (role, prompt) pairs.
             system_messages (List[str]): List of system messages to guide the model's behavior.
             model (str, optional): Model name to use. Default is "gpt-3.5-turbo-0613".
             temperature (float, optional): Sampling temperature. Default is 1.
             top_p (float, optional): Nucleus sampling parameter. Default is 1.
             n (int, optional): Number of chat completion choices to generate. Default is 1.
-            stream (bool, optional): Whether to send partial message deltas. Default is False.
             stop (str or List[str], optional): Up to 4 sequences where the API will stop generating further tokens.
             max_tokens (int, optional): Maximum number of tokens to generate.
             presence_penalty (float, optional): Penalty for new tokens based on their presence so far.
             frequency_penalty (float, optional): Penalty for new tokens based on their frequency so far.
             functions (List[dict], optional): List of functions defined in the OpenAI schema.
             function_call (str, optional): The type of function call to make. Default is "none".
+            **kwargs: Ignored additional parameters.
 
         Returns:
             List[str]: A list of request strings in JSON format.
@@ -102,7 +92,6 @@ def chat_strings(prompts, system_messages, model="gpt-3.5-turbo-0613", temperatu
     params = {"temperature": temperature,
               "top_p": top_p,
               "n": n,
-              "stream": stream,
               "stop": stop,
               "max_tokens": max_tokens,
               "presence_penalty": presence_penalty,
@@ -110,10 +99,11 @@ def chat_strings(prompts, system_messages, model="gpt-3.5-turbo-0613", temperatu
               "functions": functions,
               "function_call": function_call}
 
-    default_values = {"temperature": 1, "top_p": 1, "n": 1, "stream": False, "stop": None, "max_tokens": None, "presence_penalty": 0, "frequency_penalty": 0, "functions": None, "function_call": "none"}
+    default_values = {"temperature": 1, "top_p": 1, "n": 1, "stop": None, "max_tokens": None, "presence_penalty": 0, "frequency_penalty": 0, "functions": None, "function_call": "none"}
 
     jobs = [{"model": model,
-             "messages": [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}],
+             "messages": [{"role": "system", "content": system_message}, {"role": "user", "content": prompt}] if isinstance(prompt, str) else
+                [{"role": "system", "content": system_message}]+[{"role": r, "content": c} for r,c in prompt],
              **{param: value for param, value in params.items() if value != default_values[param]}}
             for prompt, system_message in zip(prompts, system_messages)]
 
@@ -122,12 +112,12 @@ def chat_strings(prompts, system_messages, model="gpt-3.5-turbo-0613", temperatu
 
 
 
-def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3.5-turbo-0613", api_key=None, verbose = True, as_str = False, **kwargs):
+def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3.5-turbo-0613", api_key=None, verbose = False, as_str = False, **kwargs):
     """
     Processes a list of chat prompts in parallel, saving the results to a specified file.
 
     Parameters:
-        prompts (List[str] or str): List or single prompt to send to the model.
+        prompts (List[str] or List[Tuple[str,str]] or str): List or single prompt or list of (role, prompt) pairs to send to the model.
         system_messages (List[str] or str): List or single system message to guide the model's behavior.
         save_filepath (str, optional): Path to save the results. Default is "chat_temp.txt".
         model (str, optional): Model name to use. Default is "gpt-3.5-turbo-0613".
@@ -158,7 +148,9 @@ def chat(prompts, system_messages, save_filepath = "chat_temp.txt", model="gpt-3
         save_filepath=save_filepath,
         request_url="https://api.openai.com/v1/chat/completions",
         api_key = api_key,
-        logging_level=logging.INFO if verbose else logging.ERROR
+        logging_level=logging.INFO if verbose else logging.ERROR,
+        max_requests_per_minute = 200 if "gpt-4" in request_strings[0] else 3_500 * 0.5,
+        max_tokens_per_minute = 40_000 * 0.5 if "gpt-4" in request_strings[0] else 90_000 * 0.5,
     )
 
     try:
@@ -190,7 +182,7 @@ def embed(texts, save_filepath = 'embedding_temp.txt', to_csv = True, as_np = Fa
         api_key = os.environ["OPENAI_API_KEY"]
     if isinstance(texts, str) : texts = [texts]
     if len(texts) == 1:
-        output = openai.Embedding.create(input=texts, model="text-embedding-ada-002")['data'][0]['embedding']
+        output = openai.Embedding.create(input=str(texts[0]), model="text-embedding-ada-002")['data'][0]['embedding']
         return pd.DataFrame({'text':texts,'embedding':[output]}) if to_csv else output
     if save_filepath == 'embedding_temp.txt':
         with open("embedding_temp.txt", 'w') as f:
@@ -346,8 +338,10 @@ class File:
     def completions(self):
         if self.values is None:
             self.load()
-
-        return [(entry["data"][0]["embedding"] if self.type == "embedding" else (entry["choices"][0]["message"]["content"] if len(entry["choices"]) == 1 else [m["message"]["content"] for m in entry["choices"]])) for entry in self._completions] if self._completions else []
+        try:
+            return [(entry["data"][0]["embedding"] if self.type == "embedding" else (entry["choices"][0]["message"]["content"] if len(entry["choices"]) == 1 else [m["message"]["content"] for m in entry["choices"]])) for entry in self._completions] if self._completions else []
+        except TypeError: # Indicates an error api response
+            return self._completions
 
     embedding = completions
     input = prompts
